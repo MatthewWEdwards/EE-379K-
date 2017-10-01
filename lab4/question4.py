@@ -107,18 +107,25 @@ for fold in range(1, 6):
     folds_test = folds_test.drop("SalePrice", 1)
 
     # Train models on training folds, predict test fold
+    stack_preds = np.array([])
     for i in range(0, len(models)):
 		model = models[i]
 		model = model.fit(folds_train, y_train)
-		folds_test["Model " + str(i)] = pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index)
+		stack_preds = np.append(stack_preds, pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index))
+    for i in range(0, len(models)):
+		folds_test["Model " + str(i)] = stack_preds[i]
     stack_train.update(folds_test)
     
 #%% Using original training data, create predictions on test data
 X_train_no_extras = X_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
+
+normal_preds = np.array([])
 for i in range(0, len(models)):
 	model = models[i]
-	model = model.fit(X_train, y)
-	stack_meta["Model " + str(i)] = pd.DataFrame({"preds":normal_model_ridge.predict(X_test)})
+	model = model.fit(X_train_no_extras, y)
+	normal_preds = np.append(normal_preds, pd.DataFrame({"preds":model.predict(X_test)}))
+for i in range(0, len(models)):
+	stack_meta["Model " + str(i)] = normal_preds[i]
 
 #%% Stack the models
 stack_train_final = stack_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
