@@ -15,7 +15,7 @@ for i in range(0, len(corr1)):
         if corr1[i][j] == 9999:
             num_corrupt = num_corrupt + 1
 print("")
-print("Number originally corrupted: " + str(num_corrupt))
+print("CorrMat1 Number originally corrupted: " + str(num_corrupt))
 
 # Correct corruptions
 for i in range(0, len(corr1)):
@@ -31,7 +31,7 @@ for i in range(0, len(corr1)):
         if corr1[i][j] == 9999:
             num_corrupt = num_corrupt + 1
 print("")
-print("Number corrupted after correction: " + str(num_corrupt))
+print("CorrMat1 Number corrupted after correction: " + str(num_corrupt))
 
 # Use sklearn to calculate the variance of the components
 pca = PCA(n_components=5)
@@ -53,7 +53,7 @@ for i in range(0, len(corr1)):
         if np.sqrt((corr1[i][j] - corr1_low_rank[i][j])**2) > 100:
             num_corrupt = num_corrupt + 1
 print("")
-print("Number of entries changed in value by over 100: " + str(num_corrupt))
+print("CorrMat1 number of entries changed in value by over 100: " + str(num_corrupt))
 
 # Look at the components of corr3
 pca = PCA(n_components=10)
@@ -74,7 +74,7 @@ for i in range(0, len(corr1)):
         if np.sqrt((corr3[i][j] - corr3_low_rank[i][j])**2) > 100:
             num_corrupt = num_corrupt + 1
 print("")
-print("Number of entries changed in value by over 100: " + str(num_corrupt))
+print("CorrMat3 number of entries changed in value by over 100: " + str(num_corrupt))
 
 
 
