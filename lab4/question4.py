@@ -78,14 +78,15 @@ cv_ridge.min()
 #plt.axis((0, 1, 0, 225))
 #plt.show()()
 #%% Choose models
-model_ridge = Ridge(alpha=a_ridge)
-model_lasso = LassoCV(alphas=[a_lasso])
-models = [model_ridge, model_lasso]
-
 
 #%% A good alpha choice for ridge is 10, for lasso .0007.
 a_ridge = 10
 a_lasso = .0007
+model_ridge = Ridge(alpha=a_ridge)
+model_lasso = LassoCV(alphas=[a_lasso])
+models = [model_ridge, model_lasso]
+
+# Stack models
 stack_data = X_train
 stack_data["SalePrice"] = pd.Series(y, index=stack_data.index)
 stack_data["ID"] = pd.Series(range(0, X_train.shape[0]), index=stack_data.index)
@@ -123,9 +124,7 @@ normal_preds = np.array([])
 for i in range(0, len(models)):
 	model = models[i]
 	model = model.fit(X_train_no_extras, y)
-	normal_preds = np.append(normal_preds, pd.DataFrame({"preds":model.predict(X_test)}))
-for i in range(0, len(models)):
-	stack_meta["Model " + str(i)] = normal_preds[i]
+	stack_meta["Model " + str(i)] = pd.DataFrame({"preds":model.predict(X_test)})
 
 #%% Stack the models
 stack_train_final = stack_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
@@ -135,19 +134,13 @@ final_preds = pd.DataFrame({"preds":final_model_ridge.predict(stack_meta)})
 final_preds= np.expm1(final_preds)
 
 
-#%% Create and run an xgboost model
+		#%% Create and run an xgboost model
 import xgboost as xgb
-dtrain = xgb.DMatrix(X_train, label = y)
-dtest = xgb.DMatrix(X_test)
 
-params = {"max_depth":2, "eta":0.1}
-model = xgb.cv(params, dtrain,  num_boost_round=500, early_stopping_rounds=100)
-model.loc[30:,["test-rmse-mean", "train-rmse-mean"]].plot()
-model_xgb = xgb.XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1) #the params were tuned using xgb.cv
-model_xgb.fit(X_train_no_extras, y)
+model_xgb = xgb.XGBRegressor(n_estimators=2000, max_depth=3, learning_rate=0.05) 
+model_xgb.fit(X_train_no_extras, y, verbose=False)
 xgb_preds = pd.DataFrame({"preds":model_xgb.predict(X_test)})
-
-print(rmse_cv(model_xgb))
+print(rmse_cv(model_xgb).mean())
 
 #%% Engineer some features
 new_data = all_data.copy()
@@ -170,7 +163,12 @@ first_bath_op = all_data["FullBath"].apply(quad)
 new_data["FullBathQuart"] = first_bath_op.apply(quad)
 
 #%% Choose models
-models = [model_ridge, model_lasso, model_xgb]
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.linear_model import BayesianRidge,  SGDRegressor
+model_xgb = xgb.XGBRegressor(n_estimators=300, max_depth=3, learning_rate=0.1) 
+model_br = BayesianRidge()
+#model_sgd = SGDRegressor()
+models = [model_ridge, model_lasso, model_xgb, model_br]
 
 #%% Combine models and engineered features
 X_train = new_data[0:1460]
@@ -210,7 +208,7 @@ X_train_no_extras = X_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
 for i in range(0, len(models)):
     model = models[i]
     model = model.fit(X_train_no_extras, y)
-    stack_meta["Model " + str(i)] = np.append(normal_preds, pd.DataFrame({"preds":model.predict(X_test)}))
+    stack_meta["Model " + str(i)] = pd.DataFrame({"preds":model.predict(X_test)})
 
 #%% Stack the models
 stack_train_final = stack_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
