@@ -77,6 +77,11 @@ cv_ridge.min()
 #ax2.set_ylabel("Nonzero coefficients (blue)")
 #plt.axis((0, 1, 0, 225))
 #plt.show()()
+#%% Choose models
+model_ridge = Ridge(alpha=a_ridge)
+model_lasso = LassoCV(alphas=[a_lasso])
+models = [model_ridge, model_lasso]
+
 
 #%% A good alpha choice for ridge is 10, for lasso .0007.
 a_ridge = 10
@@ -87,13 +92,8 @@ stack_data["ID"] = pd.Series(range(0, X_train.shape[0]), index=stack_data.index)
 stack_data["FoldID"] = pd.Series(np.random.randint(1, high=6, size=(X_train.shape[0])), index=stack_data.index)
 stack_meta = X_test.copy()
 stack_train = stack_data.copy()
-stack_train["Ridge"] = pd.Series(np.nan, index=stack_train.index)
-stack_train["Lasso"] = pd.Series(np.nan, index=stack_train.index)
-
-#%% Choose models
-model_ridge = Ridge(alpha=a_ridge)
-model_lasso = LassoCV(alphas=[a_lasso])
-models = [model_ridge, model_lasso]
+for i in range(0, len(models)):
+    stack_train["Model " + str(i)] = pd.Series(np.nan, index=stack_train.index)
 
 #%% Create training folds and fill out model predictions in the training data
 for fold in range(1, 6):
@@ -109,11 +109,11 @@ for fold in range(1, 6):
     # Train models on training folds, predict test fold
     stack_preds = np.array([])
     for i in range(0, len(models)):
-		model = models[i]
-		model = model.fit(folds_train, y_train)
-		stack_preds = np.append(stack_preds, pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index))
+    		model = models[i]
+    		model = model.fit(folds_train, y_train)
+    		stack_preds = np.append(stack_preds, pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index))
     for i in range(0, len(models)):
-		folds_test["Model " + str(i)] = stack_preds[i]
+        folds_test["Model " + str(i)] = stack_preds[i]
     stack_train.update(folds_test)
     
 #%% Using original training data, create predictions on test data
@@ -135,7 +135,7 @@ final_preds = pd.DataFrame({"preds":final_model_ridge.predict(stack_meta)})
 final_preds= np.expm1(final_preds)
 
 
-# Create and run an xgboost model
+#%% Create and run an xgboost model
 import xgboost as xgb
 dtrain = xgb.DMatrix(X_train, label = y)
 dtest = xgb.DMatrix(X_test)
@@ -164,26 +164,26 @@ new_data["YearRemodAdd"] = all_data["YearRemodAdd"].apply(year_dif)
 new_data["YrSold"] = all_data["YrSold"].apply(year_dif)
 
 # Add some quadratic features
-new_data["OverallQualQuad"] = all_data["OverallQual"].apply(year_dif)
+new_data["OverallQualQuad"] = all_data["OverallQual"].apply(quad)
 # Find the quartic of bathrooms because bathrooms are important
-first_bath_op = all_data["FullBath"].apply(year_dif)
-new_data["FullBathQuart"] = first_bath_op.apply(year_dif)
+first_bath_op = all_data["FullBath"].apply(quad)
+new_data["FullBathQuart"] = first_bath_op.apply(quad)
+
+#%% Choose models
+models = [model_ridge, model_lasso, model_xgb]
 
 #%% Combine models and engineered features
-X_train = new_data[:1459]
-X_test = new_data[1459:]
+X_train = new_data[0:1460]
+X_test = new_data[1460:2919]
 stack_data = X_train
 stack_data["SalePrice"] = pd.Series(y, index=stack_data.index)
 stack_data["ID"] = pd.Series(range(0, X_train.shape[0]), index=stack_data.index)
 stack_data["FoldID"] = pd.Series(np.random.randint(1, high=6, size=(X_train.shape[0])), index=stack_data.index)
 stack_meta = X_test.copy()
 stack_train = stack_data.copy()
-stack_train["Ridge"] = pd.Series(np.nan, index=stack_train.index)
-stack_train["Lasso"] = pd.Series(np.nan, index=stack_train.index)
-
-#%% Choose models
-models = [model_ridge, model_lasso, model_xgb]
-
+for i in range(0, len(models)):
+    stack_train["Model " + str(i)] = pd.Series(np.nan, index=stack_train.index)
+    
 #%% Create training folds and fill out model predictions in the training data
 for fold in range(1, 6):
     # Organize folds
@@ -198,23 +198,19 @@ for fold in range(1, 6):
     # Train models on training folds, predict test fold
     stack_preds = np.array([])
     for i in range(0, len(models)):
-		model = models[i]
-		model = model.fit(folds_train, y_train)
-		stack_preds = np.append(stack_preds, pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index))
+    		model = models[i]
+    		model = model.fit(folds_train, y_train)
+    		stack_preds = np.append(stack_preds, pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index))
     for i in range(0, len(models)):
-		folds_test["Model " + str(i)] = stack_preds[i]
+    		folds_test["Model " + str(i)] = stack_preds[i]
     stack_train.update(folds_test)
     
 #%% Using original training data, create predictions on test data
 X_train_no_extras = X_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
-
-normal_preds = np.array([])
 for i in range(0, len(models)):
-	model = models[i]
-	model = model.fit(X_train_no_extras, y)
-	normal_preds = np.append(normal_preds, pd.DataFrame({"preds":model.predict(X_test)}))
-for i in range(0, len(models)):
-	stack_meta["Model " + str(i)] = normal_preds[i]
+    model = models[i]
+    model = model.fit(X_train_no_extras, y)
+    stack_meta["Model " + str(i)] = np.append(normal_preds, pd.DataFrame({"preds":model.predict(X_test)}))
 
 #%% Stack the models
 stack_train_final = stack_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
