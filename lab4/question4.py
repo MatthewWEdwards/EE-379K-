@@ -134,6 +134,21 @@ final_model_ridge = Ridge(alpha=10).fit(stack_train_final, y)
 final_preds = pd.DataFrame({"preds":final_model_ridge.predict(stack_meta)})
 final_preds= np.expm1(final_preds)
 
+
+# Create and run an xgboost model
+import xgboost as xgb
+dtrain = xgb.DMatrix(X_train, label = y)
+dtest = xgb.DMatrix(X_test)
+
+params = {"max_depth":2, "eta":0.1}
+model = xgb.cv(params, dtrain,  num_boost_round=500, early_stopping_rounds=100)
+model.loc[30:,["test-rmse-mean", "train-rmse-mean"]].plot()
+model_xgb = xgb.XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1) #the params were tuned using xgb.cv
+model_xgb.fit(X_train_no_extras, y)
+xgb_preds = pd.DataFrame({"preds":model_xgb.predict(X_test)})
+
+print(rmse_cv(model_xgb))
+
 #%% Engineer some features
 new_data = all_data.copy()
 def year_dif(x):
@@ -154,12 +169,10 @@ new_data["OverallQualQuad"] = all_data["OverallQual"].apply(year_dif)
 first_bath_op = all_data["FullBath"].apply(year_dif)
 new_data["FullBathQuart"] = first_bath_op.apply(year_dif)
 
-
-#%% Run stacked models on the engineered features
-
-a_ridge = 10
-a_lasso = .0007
-stack_data = all_data[:1460]
+#%% Combine models and engineered features
+X_train = new_data[:1459]
+X_test = new_data[1459:]
+stack_data = X_train
 stack_data["SalePrice"] = pd.Series(y, index=stack_data.index)
 stack_data["ID"] = pd.Series(range(0, X_train.shape[0]), index=stack_data.index)
 stack_data["FoldID"] = pd.Series(np.random.randint(1, high=6, size=(X_train.shape[0])), index=stack_data.index)
@@ -167,6 +180,11 @@ stack_meta = X_test.copy()
 stack_train = stack_data.copy()
 stack_train["Ridge"] = pd.Series(np.nan, index=stack_train.index)
 stack_train["Lasso"] = pd.Series(np.nan, index=stack_train.index)
+
+#%% Choose models
+models = [model_ridge, model_lasso, model_xgb]
+
+#%% Create training folds and fill out model predictions in the training data
 for fold in range(1, 6):
     # Organize folds
     folds_combined = stack_data[stack_data["FoldID"] != fold]
@@ -176,24 +194,27 @@ for fold in range(1, 6):
     y_train = folds_combined["SalePrice"]
     y_test = folds_test["SalePrice"]
     folds_test = folds_test.drop("SalePrice", 1)
-    
+
     # Train models on training folds, predict test fold
-    model_ridge = Ridge(alpha=a_ridge).fit(folds_train, y_train)
-    model_lasso = LassoCV(alphas=[a_lasso]).fit(folds_train, y_train)    
-    ridge_preds = pd.DataFrame({"preds":model_ridge.predict(folds_test)}, index=folds_test.index)
-    lasso_preds = pd.DataFrame({"preds":model_lasso.predict(folds_test)}, index=folds_test.index)
-    
-    folds_test["Ridge"] = ridge_preds
-    folds_test["Lasso"]= lasso_preds
+    stack_preds = np.array([])
+    for i in range(0, len(models)):
+		model = models[i]
+		model = model.fit(folds_train, y_train)
+		stack_preds = np.append(stack_preds, pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index))
+    for i in range(0, len(models)):
+		folds_test["Model " + str(i)] = stack_preds[i]
     stack_train.update(folds_test)
     
 #%% Using original training data, create predictions on test data
-normal_model_ridge = Ridge(alpha=a_ridge).fit(X_train_no_extras, y)
-normal_model_lasso = LassoCV(alphas=[a_lasso]).fit(X_train_no_extras, y)
-normal_ridge_preds = pd.DataFrame({"preds":normal_model_ridge.predict(X_test)})
-normal_lasso_preds = pd.DataFrame({"preds":normal_model_lasso.predict(X_test)})
-stack_meta["Ridge"] = normal_ridge_preds
-stack_meta["Lasso"] = normal_lasso_preds
+X_train_no_extras = X_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
+
+normal_preds = np.array([])
+for i in range(0, len(models)):
+	model = models[i]
+	model = model.fit(X_train_no_extras, y)
+	normal_preds = np.append(normal_preds, pd.DataFrame({"preds":model.predict(X_test)}))
+for i in range(0, len(models)):
+	stack_meta["Model " + str(i)] = normal_preds[i]
 
 #%% Stack the models
 stack_train_final = stack_train.drop(["ID", "FoldID", "SalePrice"], axis=1)
@@ -201,22 +222,4 @@ final_model_ridge = Ridge(alpha=10).fit(stack_train_final, y)
 
 final_preds = pd.DataFrame({"preds":final_model_ridge.predict(stack_meta)})
 final_preds= np.expm1(final_preds)
-
-import xgboost as xgb
-
-dtrain = xgb.DMatrix(X_train, label = y)
-dtest = xgb.DMatrix(X_test)
-
-params = {"max_depth":2, "eta":0.1}
-model = xgb.cv(params, dtrain,  num_boost_round=500, early_stopping_rounds=100)
-model.loc[30:,["test-rmse-mean", "train-rmse-mean"]].plot()
-model_xgb = xgb.XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1) #the params were tuned using xgb.cv
-model_xgb.fit(X_train_no_extras, y)
-xgb_preds = pd.DataFrame({"preds":model_xgb.predict(X_test)})
-np.expm1(xgb_preds).to_csv("xgb_predictions.csv")
-
-print(rmse_cv(model_xgb))
-
-
-        
-	
+final_preds.to_csv("xgb_predictions.csv")
