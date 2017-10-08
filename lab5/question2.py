@@ -64,9 +64,7 @@ plt.ylabel('Volume')
 plt.show()
 
 # Covariance matrix
-variances = np.linalg.inv((np.diag(np.var(weekly)))**.5)
-corr_matrix = variances * np.cov(weekly, rowvar=False) *variances
-print corr_matrix
+print np.cov(weekly, rowvar=False) 
 
 # Logistic Regression (Parts b and c)
 weekly["TrainID"] = pd.Series(np.random.randint(0, high=2, size=(len(weekly['Year']))), index=weekly.index)
@@ -84,10 +82,66 @@ log_reg = LogisticRegression()
 log_reg.fit(train_weekly_x, train_weekly_y)
 log_reg_weekly_y_preds = log_reg.predict(test_weekly_x)
 score = log_reg.score(test_weekly_x, test_weekly_y)
-confusion_matrix = confusion_matrix(test_weekly_y, log_reg_weekly_y_preds)	
-print "Score: " + str(score)
-print "Logistic Regression Coefficients [Lag1, Lag2, Lag3, Lag4, Lag5, Volume]: " + str(log_reg.coef_)
+conf_matrix = confusion_matrix(test_weekly_y, log_reg_weekly_y_preds)	
+print "\nLogistic Regression Coefficients [Lag1, Lag2, Lag3, Lag4, Lag5, Volume]: " + str(log_reg.coef_)
 print "Confusion Matrix:"
-print confusion_matrix
+print conf_matrix
+print "Fraction of Correct Predictions: " + str(score)
 
 # Logistic Regression (Part d)
+train_weekly = weekly[weekly["Year"] < 2009]
+test_weekly = weekly[weekly["Year"] > 2008]
+train_weekly_x = train_weekly[['Lag2']]
+train_weekly_y = train_weekly[['Direction']]
+test_weekly_x = test_weekly[['Lag2']]
+test_weekly_y = test_weekly[['Direction']]
+log_reg = LogisticRegression()
+log_reg.fit(train_weekly_x, train_weekly_y)
+log_reg_weekly_y_preds = log_reg.predict(test_weekly_x)
+score = log_reg.score(test_weekly_x, test_weekly_y)
+conf_matrix = confusion_matrix(test_weekly_y, log_reg_weekly_y_preds)	
+print "\nLogistic Regression Coefficients [Lag2]: " + str(log_reg.coef_)
+print "Confusion Matrix:"
+print conf_matrix
+print "Fraction of Correct Predictions: " + str(score)
+
+# LDA using sklearn
+from sklearn.lda import LDA
+lda = LDA()
+lda.fit(train_weekly_x, train_weekly_y)
+lda_preds = lda.predict(test_weekly_x)
+lda_score = lda.score(test_weekly_x, test_weekly_y)
+conf_matrix = confusion_matrix(test_weekly_y, lda_preds)
+
+print "\nLDA Results"
+print "Confusion Matrix:"
+print conf_matrix
+print "Fraction of Correct Predictions: " + str(score)
+
+# QDA using sklearn
+from sklearn.qda import QDA
+
+qda = QDA()
+qda.fit(train_weekly_x, train_weekly_y)
+qda_preds = qda.predict(test_weekly_x)
+qda_score = qda.score(test_weekly_x, test_weekly_y)
+conf_matrix = confusion_matrix(test_weekly_y, qda_preds)
+
+print "\nQDA Results"
+print "Confusion Matrix:"
+print conf_matrix
+print "Fraction of Correct Predictions: " + str(score)
+
+# KNN using sklearn
+from sklearn.neighbors import KNeighborsClassifier
+
+knn = KNeighborsClassifier(n_neighbors=1)
+knn.fit(train_weekly_x, train_weekly_y)
+knn_preds = knn.predict(test_weekly_x)
+knn_score = knn.score(test_weekly_x, test_weekly_y)
+conf_matrix = confusion_matrix(test_weekly_y, knn_preds)
+
+print "\nKNN Results"
+print "Confusion Matrix:"
+print conf_matrix
+print "Fraction of Correct Predictions: " + str(score)
