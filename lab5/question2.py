@@ -116,7 +116,7 @@ conf_matrix = confusion_matrix(test_weekly_y, lda_preds)
 print "\nLDA Results"
 print "Confusion Matrix:"
 print conf_matrix
-print "Fraction of Correct Predictions: " + str(score)
+print "Fraction of Correct Predictions: " + str(lda_score)
 
 # QDA using sklearn
 from sklearn.qda import QDA
@@ -130,7 +130,7 @@ conf_matrix = confusion_matrix(test_weekly_y, qda_preds)
 print "\nQDA Results"
 print "Confusion Matrix:"
 print conf_matrix
-print "Fraction of Correct Predictions: " + str(score)
+print "Fraction of Correct Predictions: " + str(qda_score)
 
 # KNN using sklearn
 from sklearn.neighbors import KNeighborsClassifier
@@ -141,7 +141,92 @@ knn_preds = knn.predict(test_weekly_x)
 knn_score = knn.score(test_weekly_x, test_weekly_y)
 conf_matrix = confusion_matrix(test_weekly_y, knn_preds)
 
-print "\nKNN Results"
+print "\nKNN Results (k=1)"
+print "Confusion Matrix:"
+print conf_matrix
+print "Fraction of Correct Predictions: " + str(knn_score)
+
+# KNN with different k values
+k_max = 1
+k_max_score = .5
+for k in range(2, 11):
+	knn = KNeighborsClassifier(n_neighbors=k)
+	knn.fit(train_weekly_x, train_weekly_y)
+	knn_preds = knn.predict(test_weekly_x)
+	knn_score = knn.score(test_weekly_x, test_weekly_y)
+	if knn_score > k_max_score:
+		k_max_score = knn_score
+		k_max = k
+
+knn = KNeighborsClassifier(n_neighbors=k_max)
+knn.fit(train_weekly_x, train_weekly_y)
+knn_preds = knn.predict(test_weekly_x)
+conf_matrix = confusion_matrix(test_weekly_y, knn_preds)
+
+print "\nKNN Results (k=" + str(k_max) + ") The best k between 1 and 10"
+print "Confusion Matrix:"
+print conf_matrix
+print "Fraction of Correct Predictions: " + str(k_max_score)
+	
+# Running logistic regression on the outputs of other methods
+
+# Generate independent predictions for training data
+models = [LogisticRegression(), LDA(), KNeighborsClassifier(n_neighbors=k_max)]
+
+train_data = weekly[weekly['Year'] < 2009]
+train_data = train_data[['Lag2','Direction']]
+train_x = train_data.drop('Direction', 1)
+train_y = train_data['Direction']
+test_data = weekly[weekly['Year'] > 2008]
+test_data = test_data[['Lag2','Direction']]
+test_x = test_data.drop('Direction', 1)
+test_y = test_data['Direction']
+
+stack_data = train_data.copy()
+stack_data["FoldID"] = pd.Series(np.random.randint(1, high=6, size=(train_data.shape[0])), index=stack_data.index)
+stack_meta = test_x.copy()
+stack_train = stack_data.copy()
+for i in range(0, len(models)):
+    stack_train["Model " + str(i)] = pd.Series(np.nan, index=stack_train.index)
+
+#%% Create training folds and fill out model predictions in the training data
+for fold in range(1, 6):
+    # Organize folds
+    folds_combined = stack_data[stack_data["FoldID"] != fold]
+    folds_train = folds_combined.drop("Direction", 1)
+    folds_test = stack_data[stack_data["FoldID"] == fold]
+    folds_test = folds_test.reindex()
+    y_train = folds_combined["Direction"]
+    y_test = folds_test["Direction"]
+    folds_test = folds_test.drop("Direction", 1)
+
+    # Train models on training folds, predict test fold
+    stack_preds = np.array([])
+    for i in range(0, len(models)):
+		model = models[i]
+		model = model.fit(folds_train, y_train)
+		stack_preds = np.append(stack_preds, pd.DataFrame({"preds":model.predict(folds_test)}, index=folds_test.index))
+    for i in range(0, len(models)):
+        folds_test["Model " + str(i)] = stack_preds[i]
+    stack_train.update(folds_test)
+    
+#%% Using original training data, create predictions on test data
+
+normal_preds = np.array([])
+for i in range(0, len(models)):
+	model = models[i]
+	model = model.fit(train_x, train_y)
+	stack_meta["Model " + str(i)] = pd.Series(model.predict(test_x), index=stack_meta.index)
+
+#%% Stack the models
+stack_train_final = stack_train.drop(["FoldID", "Direction"], axis=1)
+
+log_reg = LogisticRegression()
+log_reg.fit(stack_train_final, train_y)
+final_preds = log_reg.predict(stack_meta)
+score = log_reg.score(stack_meta, test_y)
+conf_matrix = confusion_matrix(test_y, final_preds)	
+print "\nStacked Logistic Regression Coefficients [Lag2, LDA, KNN]: " + str(log_reg.coef_)
 print "Confusion Matrix:"
 print conf_matrix
 print "Fraction of Correct Predictions: " + str(score)

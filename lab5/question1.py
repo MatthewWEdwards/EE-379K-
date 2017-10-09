@@ -78,8 +78,14 @@ label = np.concatenate((np.zeros((20, 1)), np.zeros((20,1)) + 1))
 lda = LDA()
 skl_transform = lda.fit_transform(points, label)
 
-plt.plot(skl_transform[:20], np.zeros_like(label_1_projected), 'o', c='r')
-plt.plot(skl_transform[20:], np.zeros_like(label_2_projected), 'o',  c='b')
+f, ax = plt.subplots(1,2)
+
+ax[0].plot(skl_transform[:20], np.zeros_like(label_1_projected), 'o', c='r')
+ax[0].plot(skl_transform[20:], np.zeros_like(label_2_projected), 'o',  c='b')
+ax[0].set_title('SKlearn Projection')
+ax[1].plot(label_1_projected, np.zeros_like(label_1_projected), 'o', c='r')
+ax[1].plot(label_2_projected, np.zeros_like(label_2_projected), 'o',  c='b')
+ax[1].set_title('Manual Projection')
 plt.show()
 
 
