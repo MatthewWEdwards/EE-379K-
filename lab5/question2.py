@@ -79,22 +79,17 @@ plt.ylabel('Volume')
 plt.show()
 
 #%%Logistic Regression (Parts b and c)
-weekly["TrainID"] = pd.Series(np.random.randint(0, high=2, size=(len(weekly['Year']))), index=weekly.index)
-train_weekly = weekly[weekly['TrainID'] == 1]
-test_weekly = weekly[weekly['TrainID'] == 0]
-train_weekly_y = train_weekly["Direction"]
-train_weekly_x = train_weekly[['Lag1', 'Lag2', 'Lag3', 'Lag4', 'Lag5', 'Volume']]
-test_weekly_y = test_weekly["Direction"]
-test_weekly_x = test_weekly[['Lag1', 'Lag2', 'Lag3', 'Lag4', 'Lag5', 'Volume']]
+weekly_y = weekly["Direction"]
+weekly_x = weekly[['Lag1', 'Lag2', 'Lag3', 'Lag4', 'Lag5', 'Volume']]
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix
 
 log_reg = LogisticRegression()
-log_reg.fit(train_weekly_x, train_weekly_y)
-log_reg_weekly_y_preds = log_reg.predict(test_weekly_x)
-score = log_reg.score(test_weekly_x, test_weekly_y)
-conf_matrix = confusion_matrix(test_weekly_y, log_reg_weekly_y_preds)	
+log_reg.fit(weekly_x, weekly_y)
+log_reg_weekly_y_preds = log_reg.predict(weekly_x)
+score = log_reg.score(weekly_x, weekly_y)
+conf_matrix = confusion_matrix(weekly_y, log_reg_weekly_y_preds)	
 print "\nLogistic Regression Coefficients [Lag1, Lag2, Lag3, Lag4, Lag5, Volume]: " + str(log_reg.coef_)
 print "Confusion Matrix:"
 print conf_matrix
