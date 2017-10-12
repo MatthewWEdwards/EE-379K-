@@ -1,13 +1,6 @@
-import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib
-import sklearn as skl
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from scipy.stats import skew
-from scipy.stats.stats import pearsonr
 
 # generate points
 label_1 = np.random.multivariate_normal([0,0,0], [[1,.9,.9],[.9,1,.9],[.9,.9,1]], size=20)
