@@ -35,7 +35,6 @@ from sklearn.preprocessing import scale
 from sklearn.decomposition import PCA
 from sklearn import cross_validation
 from sklearn.linear_model import LinearRegression
-%matplotlib inline
 import seaborn as sns
 sns.set_style('darkgrid')
 

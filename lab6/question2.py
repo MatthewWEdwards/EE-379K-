@@ -1,22 +1,16 @@
 import pandas as pd
 import numpy as np
-import seaborn as sb
-import matplotlib
-import sklearn as skl
+import matplotlib.pyplot as plt
 import sys
 
-import matplotlib.pyplot as plt
-from scipy.stats import skew
-from scipy.stats.stats import pearsonr
-
+#%% Pass 0 is we don't want to plot
 show_plots_flag = 1
 if(len(sys.argv) > 1):
 	if sys.argv[1] == '0':
 		show_plots_flag = 0
 		
-
+#%% collect some data, do some basic transforms
 college = pd.read_csv("./college.csv")
-
 college_names = college["Name"]
 college = college.drop(["Name"], axis=1)
 
@@ -24,24 +18,29 @@ def if_private(private):
 	return private == "Yes"
 college["Private"] = college["Private"].apply(if_private)
 
-college_train = college[:400]
-college_test = college[400:]
+#%% Randomly select testing and training data
+college["FoldID"] = pd.Series(np.random.randint(1, high=7, size=(college.shape[0])), index=college.index)
+college_train = college[college["FoldID"] != 1]
+college_test = college[college["FoldID"] == 1]
+college_train.drop(["FoldID"], axis=1)
+college_test.drop(["FoldID"], axis=1)
 college_train_x = college_train.drop(["Apps"], axis=1)
 college_train_y = college_train["Apps"]
 college_test_x = college_test.drop(["Apps"], axis=1)
 college_test_y = college_test["Apps"]
 
+#%% Cross validation and rmse functions
 from sklearn.cross_validation import cross_val_score
 
 def rmse_cv(model, x, y):
-    rmse= np.sqrt(-cross_val_score(model, x, y, scoring="mean_squared_error", cv = 5))
+    rmse= np.sqrt(-cross_val_score(model, x, y, scoring="neg_mean_squared_error", cv = 5))
     return(rmse)
 
 def rmse(model,x ,y):
     rmse = np.sqrt(((model.predict(x) - y)**2).mean())
     return (rmse)
 	
-
+#%% Naive linear regression
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 LRM = LinearRegression()
 print "Linear Regression RMSE from cross validation:"
@@ -50,14 +49,15 @@ LRM.fit(college_train_x, college_train_y)
 print "\nLinear Regression test RMSE"
 print rmse(LRM, college_test_x, college_test_y)
 
-
+#%% Ridge Regression
 ridge_alphas = np.concatenate((np.linspace(0.1, 1, num=10),
                                np.linspace(1, 10, num=10),
                                np.linspace(10, 100, num=10),
-							   np.linspace(100, 1000, num=10),
-							   np.linspace(1000, 10000, num=10),
-							   np.linspace(10000, 100000, num=10),
-							   np.linspace(100000, 1000000, num=10)))
+                               np.linspace(100, 1000, num=10),
+                               np.linspace(1000, 10000, num=10),
+                               np.linspace(10000, 100000, num=10),
+                               np.linspace(100000, 1000000, num=10)))
+
 cv_ridge = [rmse_cv(Ridge(alpha = alpha), college_train_x, college_train_y).mean() for alpha in ridge_alphas]
 min_alpha = ridge_alphas[np.argmin(cv_ridge)]
 
@@ -73,6 +73,7 @@ best_ridge.fit(college_train_x, college_train_y)
 print "\nRidge Regression test RMSE (alpha = " + str(min_alpha) + ")"
 print rmse(best_ridge, college_test_x, college_test_y)
 
+#%% Lasso Regression
 lasso_alphas = np.concatenate((np.linspace(0.00001, 0.0001, num=10),
                                np.linspace(0.0001, 0.001, num=10),
                                np.linspace(0.001, 0.01, num=10),
@@ -93,7 +94,10 @@ best_lasso = Lasso()
 best_lasso.fit(college_train_x, college_train_y)
 print "\nLasso Regression test RMSE (alpha = " + str(min_alpha) + ")"
 print rmse(best_lasso, college_test_x, college_test_y)
+print "\nLasso L0 norm"
+print np.linalg.norm(best_lasso.coef_, ord=0)
 
+#%% PCA
 from sklearn.decomposition import PCA
 pca = PCA()
 pca.fit(college_train_x, college_train_y)
@@ -107,7 +111,7 @@ for n_comp in num_comp_array:
 	cv_pcr = np.append(cv_pcr, pca_this_rmse)
 
 plt.plot(num_comp_array, cv_pcr)
-plt.title('PCR RMSE from Cross Validation')
+plt.title('PCR Cross Validation')
 plt.xlabel("Number of Components (M)")
 plt.ylabel("Root Mean Square Error")
 if show_plots_flag:
@@ -123,6 +127,7 @@ lrm.fit(reduced_college_train_x, college_train_y)
 print "\nPCR RMSE (M = " + str(opt_m) + ")"
 print rmse(lrm, reduced_college_test_x, college_test_y)
 
+#%% PLS
 from sklearn.cross_decomposition import PLSRegression
 
 pls_components = range(1,18)
@@ -149,6 +154,6 @@ transformed_college_train_x = best_pls.fit_transform(college_train_x, college_tr
 transformed_college_test_x = best_pls.transform(college_test_x)
 lrm = LinearRegression()
 lrm.fit(transformed_college_train_x, college_train_y)
-print "\nPLSRegression Regression test RMSE (m = " + str(min_m) + ")"
+print "\nPLSRegression Regression test RMSE (M = " + str(min_m) + ")"
 print rmse(lrm, transformed_college_test_x, college_test_y)
 
