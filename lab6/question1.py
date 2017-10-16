@@ -18,6 +18,7 @@ def get_b():
 def get_e():
     return np.random.normal(0,0.25,51).reshape(-1,1)
 
+
 lr = LinearRegression(fit_intercept=False)
 b_hats = []
 for i in range(100):
@@ -29,22 +30,19 @@ for i in range(100):
     b_hats.append(lr.coef_)
 
 b_hats = np.asarray(b_hats)
-print b_hats.mean(axis=0).mean()
+print b_hats.mean(axis=0)
 print b_hats.var(axis=0).mean()
 
 
 ### Part 2 ###
 for a in [0.01,0.1,1,10,100]:
     ridge = Ridge(alpha=a)
-    b_hats = []
-    for i in range(100):
-        X = get_X()
-        b = get_b()
-        e = get_e()
-        y = np.dot(X,b) + e
-        ridge.fit(X,y)
-        b_hats.append(ridge.coef_)
-    b_hats = np.asarray(b_hats)
-    b_hat_avg = b_hats.mean(axis=0).flatten() # get the average of 100 solutions of b_hat
-    print np.linalg.norm(b_hat_avg,ord=1) # get the l1 norm to determin the model's complexity
-
+    X = get_X()
+    b = get_b()
+    e = get_e()
+    y = np.dot(X,b) + e
+    ridge.fit(X,y)
+    
+    b_hat = ridge.coef_
+    print "l1 norm: " + str(np.linalg.norm(b_hat,ord=1))
+    print "score:" + str(ridge.score(X,y))
