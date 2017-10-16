@@ -26,10 +26,10 @@ college["Private"] = college["Private"].apply(if_private)
 
 college_train = college[:400]
 college_test = college[400:]
-college_train_x = college_train.drop(["Grad.Rate"], axis=1)
-college_train_y = college_train["Grad.Rate"]
-college_test_x = college_test.drop(["Grad.Rate"], axis=1)
-college_test_y = college_test["Grad.Rate"]
+college_train_x = college_train.drop(["Apps"], axis=1)
+college_train_y = college_train["Apps"]
+college_test_x = college_test.drop(["Apps"], axis=1)
+college_test_y = college_test["Apps"]
 
 from sklearn.cross_validation import cross_val_score
 
