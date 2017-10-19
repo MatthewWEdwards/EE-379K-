@@ -1,0 +1,21 @@
+Key Ideas:
+
+Reduce car collisions, improve road safety
+Warning System
+Sensor inputs (5 sources)
+Data is procesed and fused, prediction is made
+
+Kaggle:
+Random forest, XGboost
+Tips: Very percise Cross validation, Careful hyper parameter stuff, careful about overfitting
+Gridsearch
+Tensor
+Keras
+Textbook and of chapter 3
+AUC objective
+submit soft predictions
+adaboost
+
+Read kaggle blog (ensembling and stacking)
+
+https://www.analyticsvidhya.com/blog/2016/03/complete-guide-parameter-tuning-xgboost-with-codes-python/
