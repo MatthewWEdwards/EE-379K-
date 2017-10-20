@@ -24,58 +24,6 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import OneHotEncoder
 
-original_train_data = pd.read_csv("./train_final.csv")
-original_test_data = pd.read_csv("./test_final.csv")
-
-train_data = original_train_data.fillna(original_train_data.mean())
-test_data = original_test_data.fillna(original_test_data.mean())
-
-def round_col(x):
-    return round(x)
-
-#%% Grab importance features
-train_data = train_data[["Y", "F2", "F3", "F4", "F5", "F6", "F9", "F10", "F11", "F14", "F16", "F18", "F19", "F21", "F22", "F23", "F27"]]
-test_data = test_data[["F2", "F3", "F4", "F5", "F6", "F9", "F10", "F11", "F14", "F16", "F18", "F19", "F21", "F22", "F23", "F27"]]
-
-train_data["F5"] = train_data["F5"].fillna(0) # 0 is the most frequent value
-train_data["F19"] = train_data["F19"].fillna(np.exp(8))
-
-test_data["F5"] = test_data["F5"].fillna(0) # 0 is the most frequent value
-test_data["F19"] = test_data["F19"].fillna(np.exp(8))
-
-# One-hot encode
-train_data["F5"] = train_data["F5"].apply(round_col, axis=1)
-ohe = OneHotEncoder(categorical_features=[3, 4])
-train_data = ohe.fit_transform(train_data)	
-
-# log some feats
-train_data["F6"] = np.log(train_data["F6"]+1)
-train_data["F16"] = np.log(train_data["F16"]+1)
-train_data["F19"] = np.log(train_data["F19"]+1)
-train_data["F21"] = np.log(train_data["F21"]+1)
-train_data["F23"] = np.log(train_data["F23"]+1)
-#maybe 27?
-
-test_data["F6"] = np.log(test_data["F6"]+1)
-test_data["F16"] = np.log(test_data["F16"]+1)
-test_data["F19"] = np.log(test_data["F19"]+1)
-test_data["F21"] = np.log(test_data["F21"]+1)
-test_data["F23"] = np.log(test_data["F23"]+1)
-
-# Remove outliers
-train_data = train_data[train_data["F6"] < 9*(10**7)]
-train_data = train_data[train_data["F9"] < 3000]
-train_data = train_data[train_data["F16"] < 4000]
-train_data = train_data[train_data["F19"] < 200000]
-train_data = train_data[train_data["F21"] < 5000]
-train_data = train_data[train_data["F27"] < 30000]
-
-
-
-train_y = train_data["Y"]
-train_data = train_data.drop(["Y"], axis=1)
-
-
 
 #%% PCA etc.
 
@@ -226,7 +174,7 @@ LR_final.fit(super_log_reg_train, train_y)
 print roc_cv(LR_final, super_log_reg_train, train_y)
 train_preds = LR_final.predict_proba(super_log_reg_train)[:,1]
 print roc_auc_score(train_y, train_preds)
-ensembled_preds = LR_final.predict_proba(super_log_reg_test)[:,1]
+ensembled_preds = LR_final.predict_proba(super_log_reg_test)
 #%%
 final_preds = pd.DataFrame()
 final_preds["id"] = original_test_data["id"]
